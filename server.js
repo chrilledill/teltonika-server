@@ -4,22 +4,29 @@ const http = require("http");
 const HTTP_PORT = process.env.PORT || 10000;
 const TCP_PORT = 10001;
 
-/* ---------- DEVICE STATUS STORAGE ---------- */
+/* ---------- DEVICE STORAGE ---------- */
 
-const devices = {};
+let device = {
+  name: "Testfordon",
+  imei: null,
+  lastSeen: null
+};
 
-/* ---------- HTTP SERVER (for browser + app) ---------- */
+/* ---------- HTTP API ---------- */
 
 const httpServer = http.createServer((req, res) => {
 
-  if (req.url === "/devices") {
+  if (req.url === "/status") {
+
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify(devices, null, 2));
+
+    res.end(JSON.stringify(device, null, 2));
+
     return;
   }
 
   res.writeHead(200, { "Content-Type": "text/plain" });
-  res.end("Teltonika server running\n");
+  res.end("Teltonika server running");
 
 });
 
@@ -44,12 +51,8 @@ const tcpServer = net.createServer((socket) => {
 
       console.log("IMEI received:", imei);
 
-      devices[imei] = {
-        online: true,
-        lastSeen: new Date()
-      };
-
-      console.log("Device marked ONLINE:", imei);
+      device.imei = imei;
+      device.lastSeen = new Date().toISOString();
 
       socket.write(Buffer.from([0x01]));
       console.log("IMEI accepted");
@@ -57,23 +60,15 @@ const tcpServer = net.createServer((socket) => {
       return;
     }
 
-    /* AVL packet */
+    /* AVL packet received */
     if (data.length > 20) {
+
+      device.lastSeen = new Date().toISOString();
 
       console.log("AVL data received");
 
-      const imei = Object.keys(devices)[0];
-
-      if (imei) {
-        devices[imei].lastSeen = new Date();
-      }
-
     }
 
-  });
-
-  socket.on("end", () => {
-    console.log("Device disconnected");
   });
 
 });
