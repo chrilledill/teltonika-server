@@ -2,23 +2,24 @@ const net = require("net");
 const express = require("express");
 
 const app = express();
+
 const HTTP_PORT = process.env.PORT || 10000;
 const TCP_PORT = 10001;
 
 let deviceStatus = {
   name: "Testfordon",
   imei: null,
-  lastSeen: null,
-  status: "OK"
+  status: "OK",
+  lastSeen: null
 };
 
 function parseIO66(buffer) {
 
-  for (let i = 0; i < buffer.length - 2; i++) {
+  for (let i = 0; i < buffer.length - 1; i++) {
 
     if (buffer[i] === 66) {
 
-      let value = buffer[i + 1];
+      const value = buffer[i + 1];
 
       if (value === 1) {
         deviceStatus.status = "Failed Test";
@@ -35,7 +36,7 @@ function parseIO66(buffer) {
 
 }
 
-const server = net.createServer((socket) => {
+const tcpServer = net.createServer((socket) => {
 
   console.log("Device connected:", socket.remoteAddress);
 
@@ -49,10 +50,10 @@ const server = net.createServer((socket) => {
 
       try {
 
-        let imeiLength = data[1];
-        let imei = data.slice(2, 2 + imeiLength).toString();
+        const imeiLength = data[1];
+        const imei = data.slice(2, 2 + imeiLength).toString();
 
-        if (/^\d+$/.test(imei)) {
+        if (/^[0-9]+$/.test(imei)) {
 
           deviceStatus.imei = imei;
 
@@ -64,7 +65,7 @@ const server = net.createServer((socket) => {
 
         }
 
-      } catch (e) {}
+      } catch (err) {}
 
     }
 
@@ -75,23 +76,21 @@ const server = net.createServer((socket) => {
   });
 
   socket.on("close", () => {
-
     console.log("Device disconnected");
+  });
 
+  socket.on("error", (err) => {
+    console.log("Socket error:", err.message);
   });
 
 });
 
-server.listen(TCP_PORT, () => {
-
+tcpServer.listen(TCP_PORT, () => {
   console.log("Teltonika TCP server running on port", TCP_PORT);
-
 });
 
 app.get("/status", (req, res) => {
-
   res.json(deviceStatus);
-
 });
 
 app.get("/", (req, res) => {
@@ -101,11 +100,12 @@ app.get("/", (req, res) => {
   <head>
   <title>Teltonika Status</title>
   <style>
-  body { font-family: Arial; padding:40px; }
-  .row { font-size:20px; margin-bottom:10px }
+  body { font-family: Arial; padding:40px }
+  .row { font-size:22px; margin-bottom:10px }
   .alert { color:red; font-weight:bold }
   </style>
   </head>
+
   <body>
 
   <div class="row">Fordon: <span id="name"></span></div>
@@ -115,7 +115,7 @@ app.get("/", (req, res) => {
 
   <script>
 
-  async function update() {
+  async function update(){
 
     const res = await fetch("/status");
     const data = await res.json();
@@ -124,11 +124,13 @@ app.get("/", (req, res) => {
     document.getElementById("imei").innerText = data.imei;
     document.getElementById("last").innerText = data.lastSeen;
 
-    let statusEl = document.getElementById("status");
+    const statusEl = document.getElementById("status");
     statusEl.innerText = data.status;
 
-    if (data.status === "Alert") {
+    if(data.status === "Failed Test"){
       statusEl.className = "alert";
+    } else {
+      statusEl.className = "";
     }
 
   }
@@ -145,7 +147,5 @@ app.get("/", (req, res) => {
 });
 
 app.listen(HTTP_PORT, () => {
-
   console.log("HTTP server running on port", HTTP_PORT);
-
 });
