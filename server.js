@@ -21,13 +21,14 @@ function parseIO66(buffer) {
       let value = buffer[i + 1];
 
       if (value === 1) {
-        deviceStatus.status = "Alert";
-        console.log("ALERT triggered from IO 66");
+        deviceStatus.status = "Failed Test";
+        console.log("FAILED TEST triggered from IO 66");
       }
 
       if (value === 0) {
         deviceStatus.status = "OK";
       }
+
     }
 
   }
