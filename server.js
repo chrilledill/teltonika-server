@@ -1,21 +1,26 @@
 const net = require("net");
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000;
 
 const server = net.createServer((socket) => {
 
-  console.log("Device connected");
+  console.log("Device connected from:", socket.remoteAddress);
 
   socket.on("data", (data) => {
 
+    console.log("Data length:", data.length);
     console.log("HEX:", data.toString("hex"));
 
-    // Teltonika IMEI acknowledgement
+    // IMEI handshake
     if (data.length === 17) {
+      console.log("IMEI received");
       socket.write(Buffer.from([0x01]));
-      console.log("IMEI accepted");
     }
 
+  });
+
+  socket.on("end", () => {
+    console.log("Device disconnected");
   });
 
 });
