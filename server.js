@@ -1,17 +1,20 @@
 const net = require("net");
+const http = require("http");
 
 const PORT = process.env.PORT || 10000;
 
-function parseIMEI(buffer) {
-  try {
-    const imei = buffer.slice(2).toString();
-    return imei;
-  } catch {
-    return null;
-  }
-}
+/* ---------- HTTP SERVER (for browser / health check) ---------- */
 
-const server = net.createServer((socket) => {
+http.createServer((req, res) => {
+  res.writeHead(200, { "Content-Type": "text/plain" });
+  res.end("Teltonika server running\n");
+}).listen(PORT, () => {
+  console.log("HTTP server running on port", PORT);
+});
+
+/* ---------- TELTONIKA TCP SERVER ---------- */
+
+const tcpServer = net.createServer((socket) => {
 
   console.log("Device connected:", socket.remoteAddress);
 
@@ -20,26 +23,18 @@ const server = net.createServer((socket) => {
     console.log("HEX:", data.toString("hex"));
     console.log("Length:", data.length);
 
-    // Teltonika IMEI packet
+    // Teltonika IMEI handshake
     if (data.length === 17) {
-      const imei = parseIMEI(data);
+      const imei = data.slice(2).toString();
       console.log("IMEI:", imei);
 
-      // Accept device
       socket.write(Buffer.from([0x01]));
       console.log("IMEI accepted");
       return;
     }
 
-    // AVL data (very basic detection)
     if (data.length > 20) {
       console.log("AVL packet received");
-
-      const codec = data[8];
-      const records = data[9];
-
-      console.log("Codec:", codec);
-      console.log("Records:", records);
     }
 
   });
@@ -50,6 +45,6 @@ const server = net.createServer((socket) => {
 
 });
 
-server.listen(PORT, () => {
-  console.log("Server running on port", PORT);
+tcpServer.listen(10001, () => {
+  console.log("TCP server for Teltonika running on port 10001");
 });
