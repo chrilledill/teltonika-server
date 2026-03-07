@@ -4,45 +4,30 @@ const http = require("http");
 const HTTP_PORT = process.env.PORT || 10000;
 const TCP_PORT = 10001;
 
-/* ---------- HTTP SERVER ---------- */
+/* ---------- DEVICE STATUS STORAGE ---------- */
 
-http.createServer((req, res) => {
+const devices = {};
+
+/* ---------- HTTP SERVER (for browser + app) ---------- */
+
+const httpServer = http.createServer((req, res) => {
+
+  if (req.url === "/devices") {
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(devices, null, 2));
+    return;
+  }
+
   res.writeHead(200, { "Content-Type": "text/plain" });
   res.end("Teltonika server running\n");
-}).listen(HTTP_PORT, () => {
-  console.log("HTTP server running");
+
+});
+
+httpServer.listen(HTTP_PORT, () => {
+  console.log("HTTP server running on port", HTTP_PORT);
 });
 
 /* ---------- TELTONIKA TCP SERVER ---------- */
-
-function parseAVL(data) {
-  try {
-
-    const codec = data[8];
-    const records = data[9];
-
-    console.log("Codec:", codec);
-    console.log("Record count:", records);
-
-    if (records > 0) {
-
-      const timestamp = data.readBigUInt64BE(10);
-      const priority = data[18];
-
-      const lon = data.readInt32BE(19) / 10000000;
-      const lat = data.readInt32BE(23) / 10000000;
-
-      console.log("Timestamp:", timestamp.toString());
-      console.log("Priority:", priority);
-      console.log("Latitude:", lat);
-      console.log("Longitude:", lon);
-
-    }
-
-  } catch (err) {
-    console.log("Parser error:", err.message);
-  }
-}
 
 const tcpServer = net.createServer((socket) => {
 
@@ -57,7 +42,14 @@ const tcpServer = net.createServer((socket) => {
 
       const imei = data.slice(2).toString();
 
-      console.log("IMEI:", imei);
+      console.log("IMEI received:", imei);
+
+      devices[imei] = {
+        online: true,
+        lastSeen: new Date()
+      };
+
+      console.log("Device marked ONLINE:", imei);
 
       socket.write(Buffer.from([0x01]));
       console.log("IMEI accepted");
@@ -65,10 +57,17 @@ const tcpServer = net.createServer((socket) => {
       return;
     }
 
-    /* AVL data */
+    /* AVL packet */
     if (data.length > 20) {
-      console.log("AVL packet received");
-      parseAVL(data);
+
+      console.log("AVL data received");
+
+      const imei = Object.keys(devices)[0];
+
+      if (imei) {
+        devices[imei].lastSeen = new Date();
+      }
+
     }
 
   });
