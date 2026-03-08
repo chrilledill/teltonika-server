@@ -94,9 +94,43 @@ tcpServer.listen(TCP_PORT, () => {
   console.log("Teltonika TCP server running on port", TCP_PORT);
 });
 
+
+/* STATUS ENDPOINT */
+
 app.get("/status", (req, res) => {
-  res.json(devices);
+
+  const result = {};
+
+  Object.keys(devices).forEach((imei) => {
+
+    const device = devices[imei];
+    let status = device.status;
+
+    if (device.lastSeen) {
+
+      const diff = Date.now() - new Date(device.lastSeen).getTime();
+
+      if (diff > 3600000 && status !== "Failed Test") {
+        status = "Offline";
+      }
+
+    } else {
+      status = "Offline";
+    }
+
+    result[imei] = {
+      name: device.name,
+      imei: device.imei,
+      status: status,
+      lastSeen: device.lastSeen
+    };
+
+  });
+
+  res.json(result);
+
 });
+
 
 app.listen(HTTP_PORT, () => {
   console.log("HTTP server running on port", HTTP_PORT);
