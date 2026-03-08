@@ -6,14 +6,9 @@ const app = express();
 const HTTP_PORT = process.env.PORT || 10000;
 const TCP_PORT = 10001;
 
-let deviceStatus = {
-  name: "Testfordon",
-  imei: null,
-  status: "OK",
-  lastSeen: null
-};
+let devices = {};
 
-function parseIO66(buffer) {
+function parseIO66(buffer, imei) {
 
   for (let i = 0; i < buffer.length - 1; i++) {
 
@@ -22,12 +17,12 @@ function parseIO66(buffer) {
       const value = buffer[i + 1];
 
       if (value === 1) {
-        deviceStatus.status = "Failed Test";
+        devices[imei].status = "Failed Test";
         console.log("FAILED TEST triggered from IO 66");
       }
 
       if (value === 0) {
-        deviceStatus.status = "OK";
+        devices[imei].status = "OK";
       }
 
     }
@@ -40,13 +35,13 @@ const tcpServer = net.createServer((socket) => {
 
   console.log("Device connected:", socket.remoteAddress);
 
+  let currentIMEI = null;
+
   socket.on("data", (data) => {
 
     console.log("HEX:", data.toString("hex"));
 
-    deviceStatus.lastSeen = new Date().toISOString();
-
-    if (!deviceStatus.imei) {
+    if (!currentIMEI) {
 
       try {
 
@@ -55,7 +50,18 @@ const tcpServer = net.createServer((socket) => {
 
         if (/^[0-9]+$/.test(imei)) {
 
-          deviceStatus.imei = imei;
+          currentIMEI = imei;
+
+          if (!devices[imei]) {
+
+            devices[imei] = {
+              name: "Testfordon",
+              imei: imei,
+              status: "OK",
+              lastSeen: null
+            };
+
+          }
 
           console.log("IMEI received:", imei);
 
@@ -65,11 +71,19 @@ const tcpServer = net.createServer((socket) => {
 
         }
 
-      } catch (err) {}
+      } catch (err) {
+        console.log("IMEI parse error");
+      }
 
     }
 
-    parseIO66(data);
+    if (currentIMEI && devices[currentIMEI]) {
+
+      devices[currentIMEI].lastSeen = new Date().toISOString();
+
+      parseIO66(data, currentIMEI);
+
+    }
 
     socket.write(Buffer.from([0x00,0x00,0x00,0x01]));
 
@@ -90,7 +104,7 @@ tcpServer.listen(TCP_PORT, () => {
 });
 
 app.get("/status", (req, res) => {
-  res.json(deviceStatus);
+  res.json(devices);
 });
 
 app.get("/", (req, res) => {
@@ -108,10 +122,9 @@ app.get("/", (req, res) => {
 
   <body>
 
-  <div class="row">Fordon: <span id="name"></span></div>
-  <div class="row">IMEI: <span id="imei"></span></div>
-  <div class="row">Status: <span id="status"></span></div>
-  <div class="row">Last seen: <span id="last"></span></div>
+  <h2>Teltonika Device Monitor</h2>
+
+  <div id="devices"></div>
 
   <script>
 
@@ -120,17 +133,27 @@ app.get("/", (req, res) => {
     const res = await fetch("/status");
     const data = await res.json();
 
-    document.getElementById("name").innerText = data.name;
-    document.getElementById("imei").innerText = data.imei;
-    document.getElementById("last").innerText = data.lastSeen;
+    const container = document.getElementById("devices");
+    container.innerHTML = "";
 
-    const statusEl = document.getElementById("status");
-    statusEl.innerText = data.status;
+    for(const imei in data){
 
-    if(data.status === "Failed Test"){
-      statusEl.className = "alert";
-    } else {
-      statusEl.className = "";
+      const d = data[imei];
+
+      let statusClass = "";
+
+      if(d.status === "Failed Test"){
+        statusClass = "alert";
+      }
+
+      container.innerHTML += \`
+        <div class="row">Fordon: \${d.name}</div>
+        <div class="row">IMEI: \${d.imei}</div>
+        <div class="row">Status: <span class="\${statusClass}">\${d.status}</span></div>
+        <div class="row">Last seen: \${d.lastSeen}</div>
+        <hr>
+      \`;
+
     }
 
   }
