@@ -1,5 +1,6 @@
 const net = require("net");
 const express = require("express");
+const http = require("http");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -83,21 +84,12 @@ const tcpServer = net.createServer((socket) => {
     if (currentIMEI && devices[currentIMEI]) {
 
       devices[currentIMEI].lastSeen = new Date().toISOString();
-
       parseIO66(data, currentIMEI);
 
     }
 
     socket.write(Buffer.from([0x00,0x00,0x00,0x01]));
 
-  });
-
-  socket.on("close", () => {
-    console.log("Device disconnected");
-  });
-
-  socket.on("error", (err) => {
-    console.log("Socket error:", err.message);
   });
 
 });
