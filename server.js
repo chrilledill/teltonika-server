@@ -3,8 +3,7 @@ const express = require("express");
 
 const app = express();
 
-const HTTP_PORT = process.env.PORT || 10000;
-const TCP_PORT = 10001;
+const PORT = process.env.PORT || 10000;
 
 let devices = {};
 
@@ -39,7 +38,13 @@ const tcpServer = net.createServer((socket) => {
 
   socket.on("data", (data) => {
 
-    console.log("HEX:", data.toString("hex"));
+    const hex = data.toString("hex");
+    console.log("HEX:", hex);
+
+    // ignorera Render health check
+    if (hex.startsWith("48454144") || hex.startsWith("474554")) {
+      return;
+    }
 
     if (!currentIMEI) {
 
@@ -98,8 +103,8 @@ const tcpServer = net.createServer((socket) => {
 
 });
 
-tcpServer.listen(TCP_PORT, () => {
-  console.log("Teltonika TCP server running on port", TCP_PORT);
+tcpServer.listen(PORT, () => {
+  console.log("Teltonika TCP server running on port", PORT);
 });
 
 app.get("/status", (req, res) => {
@@ -111,7 +116,7 @@ app.get("/", (req, res) => {
   res.send(`
   <html>
   <head>
-  <title>Teltonika Status</title>
+  <title>Teltonika Monitor</title>
   <style>
   body { font-family: Arial; padding:40px }
   .row { font-size:22px; margin-bottom:10px }
@@ -168,6 +173,6 @@ app.get("/", (req, res) => {
 
 });
 
-app.listen(HTTP_PORT, () => {
-  console.log("HTTP server running on port", HTTP_PORT);
+app.listen(PORT, () => {
+  console.log("HTTP server running on port", PORT);
 });
