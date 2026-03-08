@@ -2,7 +2,6 @@ const net = require("net");
 const express = require("express");
 
 const app = express();
-
 const PORT = process.env.PORT || 10000;
 
 let devices = {};
@@ -41,7 +40,7 @@ const tcpServer = net.createServer((socket) => {
     const hex = data.toString("hex");
     console.log("HEX:", hex);
 
-    // ignorera Render health check
+    // ignorera Render health checks
     if (hex.startsWith("48454144") || hex.startsWith("474554")) {
       return;
     }
