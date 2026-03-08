@@ -66,7 +66,6 @@ const tcpServer = net.createServer((socket) => {
           console.log("IMEI received:", imei);
 
           socket.write(Buffer.from([0x01]));
-
           return;
 
         }
