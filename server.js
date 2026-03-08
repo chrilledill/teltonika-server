@@ -1,9 +1,10 @@
 const net = require("net");
 const express = require("express");
-const http = require("http");
 
 const app = express();
-const PORT = process.env.PORT || 10000;
+
+const HTTP_PORT = process.env.PORT || 10000;
+const TCP_PORT = 10001;
 
 let devices = {};
 
@@ -40,11 +41,6 @@ const tcpServer = net.createServer((socket) => {
 
     const hex = data.toString("hex");
     console.log("HEX:", hex);
-
-    // ignorera Render health checks
-    if (hex.startsWith("48454144") || hex.startsWith("474554")) {
-      return;
-    }
 
     if (!currentIMEI) {
 
@@ -94,76 +90,14 @@ const tcpServer = net.createServer((socket) => {
 
 });
 
-tcpServer.listen(PORT, () => {
-  console.log("Teltonika TCP server running on port", PORT);
+tcpServer.listen(TCP_PORT, () => {
+  console.log("Teltonika TCP server running on port", TCP_PORT);
 });
 
 app.get("/status", (req, res) => {
   res.json(devices);
 });
 
-app.get("/", (req, res) => {
-
-  res.send(`
-  <html>
-  <head>
-  <title>Teltonika Monitor</title>
-  <style>
-  body { font-family: Arial; padding:40px }
-  .row { font-size:22px; margin-bottom:10px }
-  .alert { color:red; font-weight:bold }
-  </style>
-  </head>
-
-  <body>
-
-  <h2>Teltonika Device Monitor</h2>
-
-  <div id="devices"></div>
-
-  <script>
-
-  async function update(){
-
-    const res = await fetch("/status");
-    const data = await res.json();
-
-    const container = document.getElementById("devices");
-    container.innerHTML = "";
-
-    for(const imei in data){
-
-      const d = data[imei];
-
-      let statusClass = "";
-
-      if(d.status === "Failed Test"){
-        statusClass = "alert";
-      }
-
-      container.innerHTML += \`
-        <div class="row">Fordon: \${d.name}</div>
-        <div class="row">IMEI: \${d.imei}</div>
-        <div class="row">Status: <span class="\${statusClass}">\${d.status}</span></div>
-        <div class="row">Last seen: \${d.lastSeen}</div>
-        <hr>
-      \`;
-
-    }
-
-  }
-
-  setInterval(update,2000);
-  update();
-
-  </script>
-
-  </body>
-  </html>
-  `);
-
-});
-
-app.listen(PORT, () => {
-  console.log("HTTP server running on port", PORT);
+app.listen(HTTP_PORT, () => {
+  console.log("HTTP server running on port", HTTP_PORT);
 });
