@@ -53,7 +53,11 @@ const tcpServer = net.createServer((socket) => {
   socket.on("data", (data) => {
 
     const hex = data.toString("hex");
-    console.log("HEX:", hex);
+    try {
+  console.log("TEXT:", data.toString());
+} catch {
+  console.log("HEX:", data.toString("hex"));
+}
 
     if (!currentIMEI) {
 
