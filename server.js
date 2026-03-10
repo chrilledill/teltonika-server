@@ -1,10 +1,10 @@
 const net = require("net");
 const express = require("express");
+const http = require("http");
 
 const app = express();
 
-const HTTP_PORT = process.env.PORT || 10000;
-const TCP_PORT = 10001;
+const PORT = process.env.PORT || 10000;
 
 const OFFLINE_TIMEOUT = 3600000; // 1 timme
 
@@ -39,6 +39,10 @@ function parseIO66(buffer) {
 
 }
 
+
+// ============================
+// TELTONIKA TCP HANDLER
+// ============================
 
 const tcpServer = net.createServer((socket) => {
 
@@ -83,14 +87,20 @@ const tcpServer = net.createServer((socket) => {
 
   });
 
+  socket.on("close", () => {
+    console.log("Device disconnected");
+  });
+
 });
 
 
-tcpServer.listen(TCP_PORT, () => {
-  console.log("Teltonika TCP server running on port", TCP_PORT);
+// ============================
+// HTTP API
+// ============================
+
+app.get("/", (req, res) => {
+  res.send("Teltonika server running");
 });
-
-
 
 app.get("/status", (req, res) => {
 
@@ -118,6 +128,16 @@ app.get("/status", (req, res) => {
 });
 
 
-app.listen(HTTP_PORT, () => {
-  console.log("HTTP server running on port", HTTP_PORT);
+// ============================
+// SHARED PORT (RENDER)
+// ============================
+
+const server = http.createServer(app);
+
+server.on("connection", (socket) => {
+  tcpServer.emit("connection", socket);
+});
+
+server.listen(PORT, () => {
+  console.log("HTTP + Teltonika server running on port", PORT);
 });
