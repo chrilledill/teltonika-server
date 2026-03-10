@@ -106,6 +106,19 @@ app.get("/", (req, res) => {
   res.send("Teltonika server running");
 });
 
+app.use(express.json());
+
+app.post("/teltonika", (req, res) => {
+
+  console.log("Gateway packet:", req.body);
+
+  device.imei = req.body.imei;
+  device.lastSeen = new Date().toISOString();
+
+  res.sendStatus(200);
+
+});
+
 app.get("/status", (req, res) => {
 
   let status = device.status;
